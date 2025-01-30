@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generate PDF</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.16.0/pdf-lib.min.js" defer></script>
+</head>
+<body>
+    <button data-type="addition">Generate Addition PDF</button>
+    <button data-type="subtraction">Generate Subtraction PDF</button>
+    <button data-type="multiplication">Generate Multiplication PDF</button>
+
+    <script>
+        window.onload = function () {
+            document.querySelectorAll("button").forEach(btn => {
+                btn.addEventListener("click", () => generatePDF(btn.dataset.type));
+            });
+        };
+
+        async function generatePDF(type) {
+            if (typeof PDFLib === "undefined") {
+                console.error("PDFLib is not loaded.");
+                alert("Failed to load PDF generation library. Please check your internet connection.");
+                return;
+            }
+
+            const { PDFDocument, rgb } = PDFLib;
+            const pdfDoc = await PDFDocument.create();
+            const font = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
+            
+            // Generate 45 random number pairs
+            let problems = [];
+            for (let i = 0; i < 45; i++) {
+                let num1 = Math.floor(Math.random() * 100) + 1;
+                let num2 = Math.floor(Math.random() * 100) + 1;
+                if (type === 'subtraction' && num1 < num2) {
+                    [num1, num2] = [num2, num1]; // Ensure num1 is always larger for subtraction
+                }
+                problems.push([num1, num2]);
+            }
+
+            // Create first page with problems in 3 columns
+            const page1 = pdfDoc.addPage([600, 800]);
+            let xOffsets = [50, 200, 350]; // X positions for the three columns
+            let y = 750; // Start from the top of the page
+
+            let title = type.charAt(0).toUpperCase() + type.slice(1) + ' Problems';
+            page1.drawText(title, { x: 50, y: y, size: 16, font, color: rgb(0, 0, 0) });
+            y -= 30; // Space below the title
+            
+            for (let col = 0; col < 3; col++) {
+                let colY = y;
+                for (let i = 0; i < 15; i++) {
+                    const [num1, num2] = problems[col * 15 + i];
+                    page1.drawText(`${num1} ${getOperator(type)} ${num2} = `, { x: xOffsets[col], y: colY, size: 12, font, color: rgb(0, 0, 0) });
+                    colY -= 20; // Move down for the next question
+                }
+            }
+
+            // Create second page with answers in 3 columns
+            const page2 = pdfDoc.addPage([600, 800]);
+            y = 750; // Start from the top of the second page
+            page2.drawText('Answer Key', { x: 50, y: y, size: 16, font, color: rgb(0, 0, 0) });
+            y -= 30; // Space below the title
+
+            for (let col = 0; col < 3; col++) {
+                let colY = y;
+                for (let i = 0; i < 15; i++) {
+                    const [num1, num2] = problems[col * 15 + i];
+                    page2.drawText(`${num1} ${getOperator(type)} ${num2} = ${getAnswer(type, num1, num2)}`, { x: xOffsets[col], y: colY, size: 12, font, color: rgb(0, 0, 0) });
+                    colY -= 20; // Move down for the next answer
+                }
+            }
+
+            // Save and download the PDF
+            const pdfBytes = await pdfDoc.save();
+            const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `${type}_problems.pdf`;
+            link.click();
+        }
+
+        function getOperator(type) {
+            if (type === 'addition') return '+';
+            if (type === 'multiplication') return '×';
+            return '-';
+        }
+
+        function getAnswer(type, num1, num2) {
+            if (type === 'addition') return num1 + num2;
+            if (type === 'multiplication') return num1 * num2;
+            return num1 - num2;
+        }
+    </script>
+</body>
+</html>
+
